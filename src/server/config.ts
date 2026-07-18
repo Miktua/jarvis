@@ -2,9 +2,12 @@ import { z } from "zod";
 
 const positiveInt = (fallback: number) => z.coerce.number().int().positive().default(fallback);
 
-const schema = z.object({
+const supabasePublicSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().min(1),
+});
+
+const schema = supabasePublicSchema.extend({
   SUPABASE_SECRET_KEY: z.string().min(1),
   DATABASE_DATA_URL: z.string().min(1),
   DATABASE_SCHEMA_URL: z.string().min(1),
@@ -26,6 +29,12 @@ const schema = z.object({
 
 export type Config = z.infer<typeof schema>;
 let cached: Config | undefined;
+let cachedSupabasePublicConfig: z.infer<typeof supabasePublicSchema> | undefined;
+
+export function getSupabasePublicConfig() {
+  cachedSupabasePublicConfig ??= supabasePublicSchema.parse(process.env);
+  return cachedSupabasePublicConfig;
+}
 
 export function getConfig(): Config {
   cached ??= schema.parse(process.env);
