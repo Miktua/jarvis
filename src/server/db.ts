@@ -1,4 +1,6 @@
 import { Pool, type PoolClient, type QueryResultRow } from "pg";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { getConfig } from "@/server/config";
 
 type Capability = "data" | "schema";
@@ -9,6 +11,10 @@ function getPool(capability: Capability): Pool {
     const config = getConfig();
     pools[capability] = new Pool({
       connectionString: capability === "data" ? config.DATABASE_DATA_URL : config.DATABASE_SCHEMA_URL,
+      ssl: {
+        ca: readFileSync(join(process.cwd(), "certs/prod-ca-2021.crt"), "utf8"),
+        rejectUnauthorized: true,
+      },
       max: 5,
       application_name: `jarvis_${capability}`,
     });
