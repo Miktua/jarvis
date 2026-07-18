@@ -733,8 +733,7 @@ Expected environment variables:
 - BOOTSTRAP_ADMIN_EMAILS
 - TELEGRAM_BOT_TOKEN
 - TELEGRAM_WEBHOOK_SECRET
-- AI_MODEL
-- AI_GATEWAY_API_KEY or Vercel OIDC configuration
+- AI_GATEWAY_API_KEY (an OpenAI API key used for direct OpenAI API calls)
 - CRON_SECRET
 - ACTION_SIGNING_SECRET
 - MAX_AGENT_STEPS
@@ -903,4 +902,3 @@ The release is not acceptable unless:
 - confirmations execute only frozen, one-time payloads;
 - the model has no raw SQL, shell, secret, or unrestricted database access;
 - the web application contains no conversational AI interface.
-
