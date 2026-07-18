@@ -9,6 +9,12 @@ export const columnDefinition = z.object({
 }).strict();
 export type ColumnDefinition = z.infer<typeof columnDefinition>;
 
+export const tableAiRule = z.object({
+  id: z.uuid(), instruction: z.string().trim().min(1).max(1000), enabled: z.boolean().default(true),
+}).strict();
+export const tableAiRules = z.array(tableAiRule).max(30);
+export type TableAiRule = z.infer<typeof tableAiRule>;
+
 export const filterOperator = z.enum(["eq","neq","lt","lte","gt","gte","contains","starts_with","is_null"]);
 export const filter = z.object({ columnId: z.uuid(), operator: filterOperator, value: z.unknown().optional() }).strict();
 export const sort = z.object({ columnId: z.uuid(), direction: z.enum(["asc","desc"]) }).strict();

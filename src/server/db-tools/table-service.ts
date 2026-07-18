@@ -3,7 +3,7 @@ import { z } from "zod";
 import { querySystem, withTransaction } from "@/server/db";
 import { requireTableAccess, type Actor } from "@/server/auth/authorization";
 import { compileCreateTable, compileWhere, physicalColumnName, physicalTableName, postgresType, quoteIdentifier } from "@/server/sql-dsl/compiler";
-import { alterOperation, columnDefinition, createTableInput, searchInput, type ColumnDefinition } from "@/server/sql-dsl/types";
+import { alterOperation, columnDefinition, createTableInput, searchInput, tableAiRules, type ColumnDefinition } from "@/server/sql-dsl/types";
 import { getConfig } from "@/server/config";
 
 const rowValues = z.record(z.uuid(), z.unknown());
@@ -13,7 +13,8 @@ export type FrozenAction =
   | { type:"drop_table"; tableId:string }
   | { type:"delete_rows"; tableId:string; rowIds:string[] }
   | { type:"share_table"; tableId:string; userId:string; access:"read"|"write" }
-  | { type:"revoke_table_access"; tableId:string; userId:string };
+  | { type:"revoke_table_access"; tableId:string; userId:string }
+  | { type:"set_table_ai_rules"; tableId:string; rules:z.infer<typeof tableAiRules> };
 
 function schemaMap(value: unknown): Map<string,ColumnDefinition> {
   const columns = z.array(columnDefinition).parse(value);
@@ -41,7 +42,7 @@ function compileValues(values: Record<string,unknown>, columns: Map<string,Colum
 }
 
 export async function listTables(actor:Actor) {
-  const rows=await querySystem(`select t.id,t.display_name,t.description,t.owner_id,t.schema_definition,
+  const rows=await querySystem(`select t.id,t.display_name,t.description,t.owner_id,t.schema_definition,t.ai_rules,
     case when t.owner_id=$1 then 'owner' else p.access::text end as access
     from public.data_tables t left join public.data_table_permissions p on p.table_id=t.id and p.user_id=$1
     where t.deleted_at is null and (t.owner_id=$1 or p.user_id=$1) order by t.display_name`,[actor.id]);
@@ -92,11 +93,20 @@ export async function updateRows(actor:Actor,tableId:string,rowIds:string[],valu
   return withTransaction("data",async(client)=>{ const result=await client.query(`update user_data.${quoteIdentifier(table.physical_name)} set ${set},_updated_at=now() where _id=any($1::uuid[])`,[rowIds,...c.values]); return {affectedRows:result.rowCount??0}; });
 }
 
+export async function updateTableAiRules(actor: Actor, tableId: string, rules: unknown) {
+  const parsed = tableAiRules.parse(rules);
+  await requireTableAccess(actor, tableId, "owner");
+  await querySystem(`update public.data_tables set ai_rules=$2,updated_at=now() where id=$1`, [tableId, JSON.stringify(parsed)]);
+  await querySystem(`insert into public.audit_log(actor_id,action,table_id,summary) values($1,'update_table_ai_rules',$2,$3)`, [actor.id, tableId, `Updated ${parsed.length} AI rules`]);
+  return parsed;
+}
+
 export async function executeFrozenAction(actor:Actor,action:FrozenAction) {
   if(action.type==="create_table") return createTable(actor,action.input,action.tableId);
   if(action.type==="delete_rows") { const table=await requireTableAccess(actor,action.tableId,"write"); z.array(z.uuid()).min(1).max(getConfig().MAX_AFFECTED_ROWS).parse(action.rowIds); return withTransaction("data",async c=>({affectedRows:(await c.query(`delete from user_data.${quoteIdentifier(table.physical_name)} where _id=any($1::uuid[])`,[action.rowIds])).rowCount??0})); }
   if(action.type==="share_table") { await requireTableAccess(actor,action.tableId,"owner"); return withTransaction("schema",async c=>{await c.query(`insert into public.data_table_permissions(table_id,user_id,access,granted_by) values($1,$2,$3,$4) on conflict(table_id,user_id) do update set access=excluded.access,granted_by=excluded.granted_by`,[action.tableId,action.userId,action.access,actor.id]); return {shared:true};}); }
   if(action.type==="revoke_table_access") { await requireTableAccess(actor,action.tableId,"owner"); return withTransaction("schema",async c=>{await c.query(`delete from public.data_table_permissions where table_id=$1 and user_id=$2`,[action.tableId,action.userId]); return {revoked:true};}); }
+  if(action.type==="set_table_ai_rules") return { rules: await updateTableAiRules(actor, action.tableId, action.rules) };
   const table=await requireTableAccess(actor,action.tableId,"owner");
   if(action.type==="drop_table") return withTransaction("schema",async c=>{await c.query(`drop table user_data.${quoteIdentifier(table.physical_name)}`); await c.query(`update public.data_tables set deleted_at=now() where id=$1`,[action.tableId]); return {dropped:true};});
   const operation=alterOperation.parse(action.operation); const columns=[...schemaMap(table.schema_definition).values()];
