@@ -1,0 +1,6 @@
+import { redirect } from "next/navigation";
+import Link from "next/link";
+import { requireSessionActor } from "@/server/auth/session";
+import { listUsers } from "@/server/auth/admin-service";
+import { approve,block } from "./actions";
+export default async function AdminPage(){const actor=await requireSessionActor();if(actor.role!=="admin")redirect("/workspace");const users=await listUsers(actor) as Array<Record<string,string>>;return <main className="admin-page"><header><div><p className="eyebrow">ADMINISTRATION</p><h1>Account access</h1></div><Link href="/workspace">Back to workspace</Link></header><section className="panel"><table><thead><tr><th>User</th><th>Status</th><th>Role</th><th>Actions</th></tr></thead><tbody>{users.map(u=><tr key={u.id}><td><strong>{u.display_name||"Unnamed"}</strong><small>{u.id}</small></td><td><span className={`pill ${u.status}`}>{u.status}</span></td><td>{u.role}</td><td><div className="row-actions">{u.status==="pending"&&<form action={approve}><input type="hidden" name="userId" value={u.id}/><button>Approve</button></form>}{u.id!==actor.id&&u.status!=="blocked"&&<form action={block}><input type="hidden" name="userId" value={u.id}/><button className="danger">Block</button></form>}</div></td></tr>)}</tbody></table></section></main>}

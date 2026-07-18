@@ -1,0 +1,3 @@
+import { requireSessionActor } from "@/server/auth/session";
+import { signOut } from "../auth/actions";
+export default async function PendingPage(){const actor=await requireSessionActor();return <main className="center-page"><section className="message-card"><span className="status-dot"/><p className="eyebrow">ACCOUNT {actor.status.toUpperCase()}</p><h1>{actor.status==="blocked"?"Access has been blocked":"Your workspace is awaiting approval"}</h1><p className="muted">Jarvis is private. An administrator must approve your account before data or Telegram access is enabled.</p><form action={signOut}><button className="secondary">Sign out</button></form></section></main>}

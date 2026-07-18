@@ -1,0 +1,7 @@
+import { after } from "next/server";
+import { getConfig } from "@/server/config";
+import { querySystem } from "@/server/db";
+import { processInboundEvent } from "@/server/telegram/events";
+import type { TelegramUpdate } from "@/server/telegram/types";
+export const runtime="nodejs";
+export async function POST(request:Request){const config=getConfig();if(request.headers.get("x-telegram-bot-api-secret-token")!==config.TELEGRAM_WEBHOOK_SECRET)return new Response("Unauthorized",{status:401});const length=Number(request.headers.get("content-length")??0);if(length>config.MAX_TELEGRAM_UPDATE_BYTES)return new Response("Too large",{status:413});let update:TelegramUpdate;try{const raw=await request.text();if(new TextEncoder().encode(raw).byteLength>config.MAX_TELEGRAM_UPDATE_BYTES)return new Response("Too large",{status:413});update=JSON.parse(raw);}catch{return new Response("Bad request",{status:400});}if(!Number.isSafeInteger(update.update_id)||(!update.message&&!update.callback_query))return new Response("Bad update",{status:400});const rows=await querySystem<{id:string}>(`insert into public.inbound_events(source,external_event_id,payload) values('telegram',$1,$2) on conflict(source,external_event_id) do nothing returning id`,[String(update.update_id),JSON.stringify(update)]);if(rows[0])after(async()=>{try{await processInboundEvent(rows[0].id);}catch{}});return new Response("OK");}

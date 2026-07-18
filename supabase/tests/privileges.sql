@@ -1,0 +1,10 @@
+begin;
+set local role jarvis_data;
+select has_schema_privilege(current_user,'user_data','usage');
+select not has_schema_privilege(current_user,'user_data','create');
+reset role;
+set local role jarvis_schema;
+select has_schema_privilege(current_user,'user_data','create');
+select not has_schema_privilege(current_user,'auth','create');
+reset role;
+rollback;

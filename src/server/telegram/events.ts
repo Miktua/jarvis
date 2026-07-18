@@ -1,0 +1,4 @@
+import { querySystem } from "@/server/db";
+import { processTelegramUpdate } from "./process-update";
+import type { TelegramUpdate } from "./types";
+export async function processInboundEvent(id:string){const rows=await querySystem<{payload:TelegramUpdate;attempts:number}>(`update public.inbound_events set status='processing',attempts=attempts+1 where id=$1 and status in ('pending','failed') and attempts<5 returning payload,attempts`,[id]);if(!rows[0])return;try{await processTelegramUpdate(rows[0].payload,id);await querySystem(`update public.inbound_events set status='processed',processed_at=now(),last_error=null where id=$1`,[id]);}catch(error){const permanent=rows[0].attempts>=5;await querySystem(`update public.inbound_events set status=$2,last_error=$3 where id=$1`,[id,permanent?"permanent_failure":"failed",error instanceof Error?error.message.slice(0,1000):"Unknown failure"]);throw error;}}

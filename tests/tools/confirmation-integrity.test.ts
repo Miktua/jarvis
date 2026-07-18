@@ -1,0 +1,3 @@
+import { describe,expect,it } from "vitest";
+import { canonicalJson,hashesEqual,payloadHash } from "@/server/security/canonical-json";
+describe("frozen confirmation payloads",()=>{it("hashes equivalent object key order identically",()=>{expect(payloadHash({b:2,a:1})).toBe(payloadHash({a:1,b:2}));expect(canonicalJson({b:2,a:1})).toBe('{"a":1,"b":2}')});it("detects any payload mutation",()=>{const original=payloadHash({type:"delete_rows",rowIds:["one"]});const modified=payloadHash({type:"delete_rows",rowIds:["one","two"]});expect(hashesEqual(original,modified)).toBe(false);expect(hashesEqual(original,original)).toBe(true);});});

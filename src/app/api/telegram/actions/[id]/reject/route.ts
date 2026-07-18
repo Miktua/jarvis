@@ -1,0 +1,2 @@
+import { NextResponse } from "next/server";import { z } from "zod";import { requireApiActor } from "@/server/auth/session";import { rejectAction } from "@/server/confirmations/service";import { jsonError } from "@/server/http";
+export async function POST(request:Request,{params}:{params:Promise<{id:string}>}){try{const actor=await requireApiActor();const {signature}=z.object({signature:z.string().length(16)}).parse(await request.json());return NextResponse.json(await rejectAction(actor,(await params).id,signature));}catch(e){return jsonError(e);}}
