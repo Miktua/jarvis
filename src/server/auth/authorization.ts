@@ -1,4 +1,5 @@
 import { querySystem } from "@/server/db";
+import { quoteIdentifier } from "@/server/sql-dsl/compiler";
 
 export type Actor = { id: string; status: "pending"|"active"|"blocked"; role: "user"|"admin" };
 export type RequiredAccess = "read"|"write"|"owner";
@@ -22,5 +23,6 @@ export async function requireTableAccess(actor: Actor, tableId: string, required
   const permitted = required === "read" ? owner || table.access === "read" || table.access === "write"
     : required === "write" ? owner || table.access === "write" : owner;
   if (!permitted) throw new AuthorizationError("Insufficient table permission");
+  await querySystem(`grant select,insert,update,delete on table user_data.${quoteIdentifier(table.physical_name)} to jarvis_data`);
   return { ...table, owner };
 }

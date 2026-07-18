@@ -52,6 +52,7 @@ export async function createTable(actor:Actor,input:unknown,tableId:string=rando
   const parsed=createTableInput.parse(input); const name=physicalTableName(tableId);
   await withTransaction("schema",async(client)=>{
     await client.query(compileCreateTable(name,parsed.columns));
+    await client.query(`grant select,insert,update,delete on table user_data.${quoteIdentifier(name)} to jarvis_data`);
     await client.query(`insert into public.data_tables(id,physical_name,display_name,description,owner_id,schema_definition) values($1,$2,$3,$4,$5,$6)`,[tableId,name,parsed.displayName,parsed.description,actor.id,JSON.stringify(parsed.columns)]);
     await client.query(`insert into public.workspace_nodes(owner_id,kind,table_id,title) values($1,'table',$2,$3)`,[actor.id,tableId,parsed.displayName]);
     await client.query(`insert into public.audit_log(actor_id,action,table_id,summary) values($1,'create_table',$2,$3)`,[actor.id,tableId,`Created ${parsed.displayName}`]);
