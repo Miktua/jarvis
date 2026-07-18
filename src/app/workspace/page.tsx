@@ -14,10 +14,12 @@ export default async function WorkspacePage({searchParams}:{searchParams:Promise
   const tables=await listTables(actor) as WorkspaceTable[]; const requested=(await searchParams).table;
   const selected=tables.find(t=>t.id===requested)??tables[0];
   const rows=selected?await searchRows(actor,{tableId:selected.id,limit:50,offset:0,filters:[],sort:[]}):[];
+  const ownedTables=tables.filter(t=>t.access==="owner"); const sharedTables=tables.filter(t=>t.access!=="owner");
+  const tableLinks=(items:WorkspaceTable[])=><nav>{items.map(t=><Link className={selected?.id===t.id?"active":""} key={t.id} href={`/workspace?table=${t.id}`}><span>{t.display_name}</span></Link>)}</nav>;
   return <main className="workspace">
     <aside><div className="workspace-brand"><span>J</span><strong>Jarvis</strong><small>Private data workspace</small></div>
-      <div className="sidebar-label">YOUR TABLES</div><nav>{tables.filter(t=>t.access==="owner").map(t=><Link className={selected?.id===t.id?"active":""} key={t.id} href={`/workspace?table=${t.id}`}><span>{t.display_name}</span></Link>)}</nav>
-      <div className="sidebar-label">SHARED WITH YOU</div><nav>{tables.filter(t=>t.access!=="owner").map(t=><Link className={selected?.id===t.id?"active":""} key={t.id} href={`/workspace?table=${t.id}`}><span>{t.display_name}</span></Link>)}</nav>
+      <div className="desktop-table-nav"><div className="sidebar-label">YOUR TABLES</div>{tableLinks(ownedTables)}<div className="sidebar-label">SHARED WITH YOU</div>{tableLinks(sharedTables)}</div>
+      <details className="mobile-table-nav"><summary><span>Tables</span><span className="menu-glyph" aria-hidden="true">☰</span></summary><div className="mobile-table-menu"><div className="sidebar-label">YOUR TABLES</div>{tableLinks(ownedTables)}<div className="sidebar-label">SHARED WITH YOU</div>{tableLinks(sharedTables)}</div></details>
       <div className="sidebar-footer"><Link href="/api/telegram/link-token">Connect Telegram</Link>{actor.role==="admin"&&<Link href="/admin">Administration</Link>}<form action={signOut}><button>Sign out</button></form></div>
     </aside>
     <section className="content"><header className="content-header"><div><p className="eyebrow">{selected?.access==="owner"?"YOUR TABLE":selected?.access?`${selected.access} ACCESS`:"WORKSPACE"}</p><h1>{selected?.display_name??"Your workspace"}</h1><p className="muted">{selected?.description??"No tables are available."}</p>{selected?.access==="owner"&&<div className="table-settings"><TableRulesPanel tableId={selected.id} initialRules={selected.ai_rules}/><PermissionsPanel tableId={selected.id}/></div>}</div><div className="profile-chip"><span>{actor.displayName.slice(0,1).toUpperCase()}</span><div><strong>{actor.displayName||"User"}</strong><small>{actor.role}</small></div></div></header>{selected&&<DataGrid columns={selected.schema_definition} rows={rows as Record<string,unknown>[]}/>}</section>
