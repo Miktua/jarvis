@@ -1,7 +1,7 @@
 import { querySystem } from "@/server/db";
 import { quoteIdentifier } from "@/server/sql-dsl/compiler";
 
-export type Actor = { id: string; status: "pending"|"active"|"blocked"; role: "user"|"admin" };
+export type Actor = { id: string; status: "pending"|"active"|"blocked"; role: "user"|"admin"; aiRules?: unknown };
 export type RequiredAccess = "read"|"write"|"owner";
 
 export class AuthorizationError extends Error { status = 403; }

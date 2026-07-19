@@ -16,7 +16,7 @@ export async function beginTask(conversationId:string,userId:string,text:string,
     await querySystem(`update public.conversation_tasks set source_text=$2,status='running',last_error=null,retry_count=retry_count+1,updated_at=now() where id=$1`,[prior.id,text]);
     return {...prior,source_text:text,status:"running" as const,retry_count:prior.retry_count+1};
   }
-  const rows=await querySystem<ConversationTask>(`insert into public.conversation_tasks(conversation_id,user_id,original_intent,source_text,plan) values($1,$2,$3,$3,$4) returning id,original_intent,source_text,gathered_facts,unresolved_ambiguity,current_step,plan,status,retry_count,verified_results`,[conversationId,userId,text,JSON.stringify([{label:"Understand request",status:"active"}])]);
+  const rows=await querySystem<ConversationTask>(`insert into public.conversation_tasks(conversation_id,user_id,original_intent,source_text,plan) values($1,$2,$3,$3,$4) returning id,original_intent,source_text,gathered_facts,unresolved_ambiguity,current_step,plan,status,retry_count,verified_results`,[conversationId,userId,text,JSON.stringify([])]);
   return rows[0];
 }
 

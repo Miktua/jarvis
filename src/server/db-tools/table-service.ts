@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { querySystem, withTransaction } from "@/server/db";
-import { requireTableAccess, type Actor } from "@/server/auth/authorization";
+import { requireActive, requireTableAccess, type Actor } from "@/server/auth/authorization";
 import { compileCreateTable, compileWhere, physicalColumnName, physicalTableName, postgresType, quoteIdentifier } from "@/server/sql-dsl/compiler";
 import { alterOperation, columnDefinition, createTableInput, searchInput, tableAiRules, type ColumnDefinition } from "@/server/sql-dsl/types";
 import { getConfig } from "@/server/config";
@@ -98,6 +98,14 @@ export async function updateTableAiRules(actor: Actor, tableId: string, rules: u
   await requireTableAccess(actor, tableId, "owner");
   await querySystem(`update public.data_tables set ai_rules=$2,updated_at=now() where id=$1`, [tableId, JSON.stringify(parsed)]);
   await querySystem(`insert into public.audit_log(actor_id,action,table_id,summary) values($1,'update_table_ai_rules',$2,$3)`, [actor.id, tableId, `Updated ${parsed.length} AI rules`]);
+  return parsed;
+}
+
+export async function updateProfileAiRules(actor: Actor, rules: unknown) {
+  const parsed = tableAiRules.parse(rules);
+  requireActive(actor);
+  await querySystem(`update public.profiles set ai_rules=$2 where id=$1`, [actor.id, JSON.stringify(parsed)]);
+  await querySystem(`insert into public.audit_log(actor_id,action,summary) values($1,'update_profile_ai_rules',$2)`, [actor.id, `Updated ${parsed.length} personal AI rules`]);
   return parsed;
 }
 
