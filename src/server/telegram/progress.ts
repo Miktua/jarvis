@@ -6,6 +6,17 @@ const labels:Record<Locale,Record<AgentProgress,string>>={ru:{thinking:"💭 Д�
 
 export function progressLocale(_text:string,_telegramLanguage?:string):Locale{return "ru";}
 
+export type PlanStatus="pending"|"active"|"done"|"failed";
+export type PlanStep={label:string;status:PlanStatus};
+const marker:Record<PlanStatus,string>={pending:"⚪",active:"🟡",done:"✅",failed:"❌"};
+function renderPlan(plan:PlanStep[]){return `Plan\n${plan.map(step=>`${marker[step.status]} ${step.label}`).join("\n")}`;}
+
+export async function createTelegramPlan(chatId:number|string,initial:PlanStep[]=[{label:"Understand request",status:"active"}]){
+  let plan=initial;let messageId:number|undefined;
+  try{messageId=(await sendTelegramMessage(chatId,renderPlan(plan))).message_id;}catch(error){console.warn("[telegram:plan] unable to send plan",{error:error instanceof Error?error.message:"Unknown error"});}
+  return async(next:PlanStep[])=>{plan=next;if(!messageId)return;try{await editTelegramMessage(chatId,messageId,renderPlan(plan));}catch(error){console.warn("[telegram:plan] unable to edit plan",{error:error instanceof Error?error.message:"Unknown error"});}};
+}
+
 export async function createTelegramProgress(chatId:number|string,text:string,telegramLanguage?:string){const locale=progressLocale(text,telegramLanguage);let current:AgentProgress="thinking";let messageId:number|undefined;
   try{messageId=(await sendTelegramMessage(chatId,labels[locale].thinking)).message_id;}catch(error){console.warn("[telegram:progress] unable to send status",{error:error instanceof Error?error.message:"Unknown error"});}
   return async(status:AgentProgress)=>{if(status===current)return;current=status;if(!messageId)return;try{await editTelegramMessage(chatId,messageId,labels[locale][status]);}catch(error){console.warn("[telegram:progress] unable to edit status",{status,error:error instanceof Error?error.message:"Unknown error"});}};
