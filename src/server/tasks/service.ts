@@ -30,5 +30,6 @@ export async function recordVerifiedResult(taskId:string,result:unknown){
   await querySystem(`update public.conversation_tasks set verified_results=verified_results || jsonb_build_array($2::jsonb),updated_at=now() where id=$1`,[taskId,JSON.stringify(result)]);
 }
 export async function finishTask(taskId:string,status:Exclude<TaskStatus,"running">,error?:string){
-  await querySystem(`update public.conversation_tasks set status=$2,last_error=$3,completed_at=case when $2 in ('completed','failed','cancelled') then now() else null end,updated_at=now() where id=$1`,[taskId,status,error??null]);
+  const isTerminal=status==="completed"||status==="failed"||status==="cancelled";
+  await querySystem(`update public.conversation_tasks set status=$2,last_error=$4,completed_at=case when $3::boolean then now() else null end,updated_at=now() where id=$1`,[taskId,status,isTerminal,error??null]);
 }
