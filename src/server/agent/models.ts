@@ -6,5 +6,4 @@ export const openai = createOpenAI({ apiKey: process.env.AI_GATEWAY_API_KEY });
 
 export const JARVIS_MODEL = openai("gpt-5.6-luna");
 export const DATA_ANALYSIS_MODEL = openai("gpt-5.6-terra");
-export const FAST_MODEL = openai("gpt-5.4-nano");
 export const TRANSCRIPTION_MODEL = openai.transcription("whisper-1");
